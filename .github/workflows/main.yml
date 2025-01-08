@@ -15,6 +15,9 @@ jobs:
         with:
           lfs: true
           submodules: 'true'
+      - uses: BSFishy/pip-action@v1
+        with:
+          packages: scons
       - name: Build
         id: build
         uses: krynv/build-godot-action@v1.0.0
