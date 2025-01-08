@@ -1,12 +1,12 @@
 extends PanelContainer
 
 
-var main: M8SceneDisplay
+var main: Main
 
 ##
 ## Called once on initial app startup.
 ##
-func init(p_main: M8SceneDisplay) -> void:
+func init(p_main: Main) -> void:
 	main = p_main
 
 	%Setting_Position.init_config_camera(p_main, "position")
@@ -26,10 +26,10 @@ func init(p_main: M8SceneDisplay) -> void:
 		on_scene_loaded()
 		var camera := main.get_scene_camera()
 		if camera:
-			camera.camera_updated.disconnect(on_camera_updated)
-			camera.camera_updated.connect(on_camera_updated)
-			camera.reposition_stopped.disconnect(on_camera_reposition_stopped)
-			camera.reposition_stopped.connect(on_camera_reposition_stopped)
+			if !camera.camera_updated.is_connected(on_camera_updated):
+				camera.camera_updated.connect(on_camera_updated)
+			if !camera.reposition_stopped.is_connected(on_camera_reposition_stopped):
+				camera.reposition_stopped.connect(on_camera_reposition_stopped)
 	)
 
 ##

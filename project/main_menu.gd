@@ -6,15 +6,13 @@ const ICON_LOAD := preload("res://assets/icon/Load.png")
 
 @onready var button_exit: Button = %ButtonExit
 
-@onready var slider_volume: HSlider = %SliderVolume
-
-@onready var main: M8SceneDisplay
+@onready var main: Main
 
 var is_key_rebinding := false
 var last_rebind_time := 0.0
 var key_rebind_callback: Callable
 
-func init(p_main: M8SceneDisplay) -> void:
+func init(p_main: Main) -> void:
 
 	main = p_main
 
@@ -26,7 +24,7 @@ func init(p_main: M8SceneDisplay) -> void:
 		visible = false
 	)
 
-	%DisplayRect.texture = main.m8_client.get_display_texture()
+	%DisplayRect.texture = main.m8_client.get_display()
 
 	_init_menu_profiles()
 	_init_menu_scene()
@@ -179,7 +177,7 @@ func _init_menu_overlays() -> void:
 	%Setting_OverlaySpectrum.init_config_overlay(main, main.overlay_spectrum, "visible")
 	%Setting_OverlayWaveform.init_config_overlay(main, main.overlay_waveform, "visible")
 	%Setting_OverlayDisplay.init_config_overlay(main, main.overlay_display, "visible")
-	%Setting_OverlayKeys.init_config_overlay(main, main.key_overlay, "visible")
+	%Setting_OverlayKeys.init_config_overlay(main, main.overlay_keys, "visible")
 
 	%Setting_OverlaySpectrum.connect_to_enable(%Button_OverlaySpectrumConfig)
 	%Setting_OverlayWaveform.connect_to_enable(%Button_OverlayWaveformConfig)
@@ -209,7 +207,7 @@ func _init_menu_overlays() -> void:
 	)
 	%Button_OverlayKeysConfig.pressed.connect(func() -> void:
 		visible = false
-		main.menu_overlay.menu_open(main.key_overlay)
+		main.menu_overlay.menu_open(main.overlay_keys)
 	)
 
 ##
@@ -224,6 +222,7 @@ func _init_menu_camera() -> void:
 
 	%Setting_MouseCamera.init_config_camera(main, "mouse_controlled_pan_zoom", func(value: bool) -> void:
 		main.current_scene.get_3d_camera().mouse_controlled_pan_zoom = value
+		if !value: main.current_scene.get_3d_camera().set_transform_to_base()
 	)
 
 	%Setting_HumanCamera.init_config_camera(main, "humanized_movement", func(value: bool) -> void:
@@ -249,8 +248,6 @@ func _init_menu_camera() -> void:
 ## Setup the audio menu controls.
 ##
 func _init_menu_audio() -> void:
-
-	var config := main.config
 
 	# volume
 
@@ -283,19 +280,16 @@ func _init_menu_audio() -> void:
 			%LineEditAudioLatency.placeholder_text = "%f ms" % AudioServer.get_output_latency()
 	)
 
-	%Setting_SAEnable.init(config.audio_analyzer_enabled, func(value: bool) -> void:
+	%Setting_SAEnable.init_config_global(main, "audio_analyzer_enabled", func(value: bool) -> void:
 		main.audio_set_spectrum_analyzer_enabled(value)
-		config.set_property_global("audio_analyzer_enabled", value)
 	)
 
-	%Setting_SAMin.init(config.audio_analyzer_min_freq, func(value: int) -> void:
+	%Setting_SAMin.init_config_global(main, "audio_analyzer_min_freq", func(value: int) -> void:
 		main.visualizer_frequency_min = value
-		config.set_property_global("audio_analyzer_min_freq", value)
 	)
 
-	%Setting_SAMax.init(config.audio_analyzer_max_freq, func(value: int) -> void:
+	%Setting_SAMax.init_config_global(main, "audio_analyzer_max_freq", func(value: int) -> void:
 		main.visualizer_frequency_max = value
-		config.set_property_global("audio_analyzer_max_freq", value)
 	)
 
 
@@ -319,7 +313,7 @@ func _init_menu_video() -> void:
 		get_window().always_on_top = value
 	)
 
-	%Setting_WindowSize.init(6, func(value: int) -> void:
+	%Setting_WindowSize.init_to_value(6, func(value: int) -> void:
 		%Setting_CustomWindowSize.visible = false
 		match value:
 			0: %Setting_CustomWindowSize.value = Vector2i(640, 480)
@@ -332,7 +326,7 @@ func _init_menu_video() -> void:
 	)
 
 	var init_window_size := Vector2i(config.window_width, config.window_height)
-	%Setting_CustomWindowSize.init(init_window_size, func(value: Vector2i) -> void:
+	%Setting_CustomWindowSize.init_to_value(init_window_size, func(value: Vector2i) -> void:
 		if get_window().size != value:
 			get_window().size = value
 			config.set_property_global("window_width", value.x)
@@ -341,8 +335,8 @@ func _init_menu_video() -> void:
 	get_window().size_changed.connect(func() -> void:
 		var is_fullscreen := get_window().mode != Window.MODE_WINDOWED
 
-		%Setting_Fullscreen.value = is_fullscreen
-		%Setting_CustomWindowSize.value = get_window().size
+		%Setting_Fullscreen.set_value_no_signal(is_fullscreen)
+		%Setting_CustomWindowSize.set_value_no_signal(get_window().size)
 
 		%Setting_WindowSize.enabled = !is_fullscreen
 		%Setting_CustomWindowSize.enabled = !is_fullscreen
@@ -396,12 +390,16 @@ func _init_menu_video() -> void:
 			0:
 				get_viewport().scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 				%Setting_FSRSharpness.enabled = false
+				%Setting_TAA.enabled = true
 			1:
 				get_viewport().scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
 				%Setting_FSRSharpness.enabled = true
+				%Setting_TAA.enabled = true
 			2:
+				%Setting_TAA.value = false
 				get_viewport().scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
 				%Setting_FSRSharpness.enabled = true
+				%Setting_TAA.enabled = false
 	)
 
 	%Setting_RenderScale.init_config_global(main, "render_scale", func(value: float) -> void:
@@ -418,37 +416,37 @@ func _init_menu_video() -> void:
 func _init_menu_filters() -> void:
 
 	%Setting_ShaderVHS.init_config_profile(main, "shader_vhs", func(value: bool) -> void:
-		main.get_node("%VHSFilter1").visible = value
-		main.get_node("%VHSFilter2").visible = value
+		main.get_node("%VHSShader1").visible = value
+		main.get_node("%VHSShader2").visible = value
 	)
 	%Setting_ShaderCRT.init_config_profile(main, "shader_crt", func(value: bool) -> void:
-		main.get_node("%VHSFilter3").visible = value and %Setting_ShaderCRTScanLines.value
-		main.get_node("%Filter4").visible = value and %Setting_ShaderCRTReverseCurvature.value
-		main.get_node("%CRTShader").visible = value
+		main.get_node("%CRTShader1").visible = value and %Setting_ShaderCRTScanLines.value
+		main.get_node("%CRTShader2").visible = value and %Setting_ShaderCRTReverseCurvature.value
+		main.get_node("%CRTShader3").visible = value
 	)
 	%Setting_ShaderNoise.init_config_profile(main, "shader_noise", func(value: bool) -> void:
 		main.get_node("%NoiseShader").visible = value
 	)
 
-	%Setting_ShaderVHSSmear.init_config_shader(main, "%VHSFilter1", "smear")
-	%Setting_ShaderVHSWiggle.init_config_shader(main, "%VHSFilter1", "wiggle")
-	%Setting_ShaderVHSNoise.init_config_shader(main, "%VHSFilter2", "crease_opacity")
-	%Setting_ShaderVHSTape.init_config_shader(main, "%VHSFilter2", "tape_crease_smear")
+	%Setting_ShaderVHSSmear.init_config_shader(main, "%VHSShader1", "smear")
+	%Setting_ShaderVHSWiggle.init_config_shader(main, "%VHSShader1", "wiggle")
+	%Setting_ShaderVHSNoise.init_config_shader(main, "%VHSShader2", "crease_opacity")
+	%Setting_ShaderVHSTape.init_config_shader(main, "%VHSShader2", "tape_crease_smear")
 
 	%Setting_ShaderCRTScanLines.init_config_profile(main, "shader_crt_scan_lines", func(value: bool) -> void:
-		main.get_node("%VHSFilter3").visible = value and %Setting_ShaderCRT.value
+		main.get_node("%CRTShader1").visible = value and %Setting_ShaderCRT.value
 	)
 	%Setting_ShaderCRTReverseCurvature.init_config_profile(main, "shader_crt_reverse_curvature", func(value: bool) -> void:
-		main.get_node("%Filter4").visible = value and %Setting_ShaderCRT.value
+		main.get_node("%CRTShader2").visible = value and %Setting_ShaderCRT.value
 	)
-	%Setting_ShaderCRTCurvature.init_config_shader(main, "%CRTShader", "warp_amount")
-	%Setting_ShaderCRTVignette.init_config_shader(main, "%CRTShader", "vignette_opacity")
+	%Setting_ShaderCRTCurvature.init_config_shader(main, "%CRTShader3", "warp_amount")
+	%Setting_ShaderCRTVignette.init_config_shader(main, "%CRTShader3", "vignette_opacity")
 
 	%Setting_ShaderCRTAudioB.init_config_global(main, "audio_to_brightness", func(value: float) -> void:
 		main.visualizer_brightness_amount = value
 	)
-	%Setting_ShaderCRTAudioCA.init_config_global(main, "audio_to_ca", func(value: float) -> void:
-		main.visualizer_ca_amount = value
+	%Setting_ShaderCRTAudioCA.init_config_global(main, "audio_to_aberration", func(value: float) -> void:
+		main.visualizer_aberration_amount = value
 	)
 
 	%Setting_ShaderVHS.connect_to_enable(%Setting_ShaderVHSSmear)
@@ -534,14 +532,14 @@ func _init_menu_input() -> void:
 func _init_menu_model() -> void:
 
 	for arr: Array in [
-		[%Setting_ModelColorUp, "%Keycap_Up", "model_color_key_up"],
-		[%Setting_ModelColorDown, "%Keycap_Down", "model_color_key_down"],
-		[%Setting_ModelColorLeft, "%Keycap_Left", "model_color_key_left"],
-		[%Setting_ModelColorRight, "%Keycap_Right", "model_color_key_right"],
-		[%Setting_ModelColorOption, "%Keycap_Option", "model_color_key_option"],
-		[%Setting_ModelColorEdit, "%Keycap_Edit", "model_color_key_edit"],
-		[%Setting_ModelColorShift, "%Keycap_Shift", "model_color_key_shift"],
-		[%Setting_ModelColorPlay, "%Keycap_Play", "model_color_key_play"],
+		[%Setting_ModelColorUp, "%KeyUp", "model_color_key_up"],
+		[%Setting_ModelColorDown, "%KeyDown", "model_color_key_down"],
+		[%Setting_ModelColorLeft, "%KeyLeft", "model_color_key_left"],
+		[%Setting_ModelColorRight, "%KeyRight", "model_color_key_right"],
+		[%Setting_ModelColorOption, "%KeyOption", "model_color_key_option"],
+		[%Setting_ModelColorEdit, "%KeyEdit", "model_color_key_edit"],
+		[%Setting_ModelColorShift, "%KeyShift", "model_color_key_shift"],
+		[%Setting_ModelColorPlay, "%KeyPlay", "model_color_key_play"],
 		[%Setting_ModelColorBody, "%Body", "model_color_body"]
 	]:
 		var setting: SettingBase = arr[0]
@@ -566,24 +564,24 @@ func _init_menu_model() -> void:
 				s.set_value_no_signal(value)
 			if _model():
 				var colors: Array[Color] = [
-					_model("%Keycap_Up").material_overlay.albedo_color,
-					_model("%Keycap_Down").material_overlay.albedo_color,
-					_model("%Keycap_Left").material_overlay.albedo_color,
-					_model("%Keycap_Right").material_overlay.albedo_color
+					_model("%KeyUp").material_overlay.albedo_color,
+					_model("%KeyDown").material_overlay.albedo_color,
+					_model("%KeyLeft").material_overlay.albedo_color,
+					_model("%KeyRight").material_overlay.albedo_color
 				]
-				_model("%Keycap_Up").material_overlay.albedo_color = Color(value, colors[0].a)
-				_model("%Keycap_Down").material_overlay.albedo_color = Color(value, colors[1].a)
-				_model("%Keycap_Left").material_overlay.albedo_color = Color(value, colors[2].a)
-				_model("%Keycap_Right").material_overlay.albedo_color = Color(value, colors[3].a)
-			main.key_overlay.color_directional = value
+				_model("%KeyUp").material_overlay.albedo_color = Color(value, colors[0].a)
+				_model("%KeyDown").material_overlay.albedo_color = Color(value, colors[1].a)
+				_model("%KeyLeft").material_overlay.albedo_color = Color(value, colors[2].a)
+				_model("%KeyRight").material_overlay.albedo_color = Color(value, colors[3].a)
+			main.overlay_keys.color_directional = value
 		)
 
 	# highlight color for other buttons
 	for arr: Array in [
-		[%Setting_ModelColorHLOption, "%Keycap_Option", "color_option", "hl_color_option"],
-		[%Setting_ModelColorHLEdit, "%Keycap_Edit", "color_edit", "hl_color_edit"],
-		[%Setting_ModelColorHLShift, "%Keycap_Shift", "color_shift", "hl_color_shift"],
-		[%Setting_ModelColorHLPlay, "%Keycap_Play", "color_play", "hl_color_play"],
+		[%Setting_ModelColorHLOption, "%KeyOption", "color_option", "hl_color_option"],
+		[%Setting_ModelColorHLEdit, "%KeyEdit", "color_edit", "hl_color_edit"],
+		[%Setting_ModelColorHLShift, "%KeyShift", "color_shift", "hl_color_shift"],
+		[%Setting_ModelColorHLPlay, "%KeyPlay", "color_play", "hl_color_play"],
 	]:
 		var setting: SettingBase = arr[0]
 		var node_path: String = arr[1]
@@ -595,7 +593,7 @@ func _init_menu_model() -> void:
 				if _model():
 					var color: Color = _model(node_path).material_overlay.albedo_color
 					_model(node_path).material_overlay.albedo_color = Color(value, color.a)
-				main.key_overlay.set(overlay_prop, value)
+				main.overlay_keys.set(overlay_prop, value)
 		)
 
 	# sync color swatches between all color pickers
@@ -636,6 +634,20 @@ func _init_menu_model() -> void:
 	)
 	%Setting_ModelScreenEmission.init_config_profile(main, "model_screen_emission", func(value: float) -> void:
 		if _model(): _model().set_screen_emission(value)
+	)
+
+	main.scene_loaded.connect(func(_scene_path: String, scene: M8Scene) -> void:
+		var enabled := scene.has_3d_camera()
+
+		for setting in color_settings:
+			setting.enabled = enabled
+			%Setting_ModelHighlightOpacity.enabled = enabled
+			%Setting_ModelScreenFilter.enabled = enabled
+			%Setting_ModelScreenEmission.enabled = enabled
+
+		%Setting_ModelHighlightOpacity.reinit()
+		%Setting_ModelScreenFilter.reinit()
+		%Setting_ModelScreenEmission.reinit()
 	)
 
 ##
@@ -891,11 +903,11 @@ func update_device_colors() -> void:
 			keycap.material_overlay.albedo_color = hl_color
 
 	# update key overlay colors
-	main.key_overlay.color_directional = config.hl_color_directional
-	main.key_overlay.color_shift = config.hl_color_shift
-	main.key_overlay.color_play = config.hl_color_play
-	main.key_overlay.color_option = config.hl_color_option
-	main.key_overlay.color_edit = config.hl_color_edit
+	main.overlay_keys.color_directional = config.hl_color_directional
+	main.overlay_keys.color_shift = config.hl_color_shift
+	main.overlay_keys.color_play = config.hl_color_play
+	main.overlay_keys.color_option = config.hl_color_option
+	main.overlay_keys.color_edit = config.hl_color_edit
 
 func reset_key_rebinds() -> void:
 	for action: String in [

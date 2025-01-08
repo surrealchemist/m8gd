@@ -4,15 +4,15 @@
 [ext_resource type="Shader" path="res://shaders/post_process.gdshader" id="1_tjung"]
 [ext_resource type="Shader" path="res://shaders/crt.gdshader" id="2_2rjfu"]
 [ext_resource type="Shader" path="res://shaders/vhs.gdshader" id="2_34vyn"]
-[ext_resource type="PackedScene" uid="uid://263mog4cxgwr" path="res://overlays/audio_spectrum.tscn" id="2_tbmna"]
+[ext_resource type="PackedScene" uid="uid://263mog4cxgwr" path="res://overlays/overlay_audio_spectrum.tscn" id="2_tbmna"]
 [ext_resource type="Texture2D" uid="uid://7y0rs0v6d4nk" path="res://assets/noise.png" id="4_gv8ps"]
 [ext_resource type="Shader" path="res://shaders/vhs2.gdshader" id="4_ioov3"]
-[ext_resource type="PackedScene" uid="uid://bkmg6tijdna2y" path="res://overlays/display_panel.tscn" id="4_nrhlm"]
+[ext_resource type="PackedScene" uid="uid://bkmg6tijdna2y" path="res://overlays/overlay_display_panel.tscn" id="4_nrhlm"]
 [ext_resource type="Shader" path="res://shaders/vhs3.gdshader" id="4_tq17m"]
-[ext_resource type="PackedScene" uid="uid://dq6heks88e2ip" path="res://overlays/audio_waveform.tscn" id="5_p87tv"]
+[ext_resource type="PackedScene" uid="uid://dq6heks88e2ip" path="res://overlays/overlay_audio_waveform.tscn" id="5_p87tv"]
 [ext_resource type="Shader" path="res://shaders/screen_blur.gdshader" id="7_5hn1q"]
 [ext_resource type="PackedScene" uid="uid://d13t756slc8b0" path="res://main_menu.tscn" id="7_k5oyo"]
-[ext_resource type="PackedScene" uid="uid://ca2jqh2tc7jix" path="res://overlays/key_overlay.tscn" id="8_dnyct"]
+[ext_resource type="PackedScene" uid="uid://ca2jqh2tc7jix" path="res://overlays/overlay_keys.tscn" id="8_dnyct"]
 [ext_resource type="PackedScene" uid="uid://geilakxinhul" path="res://scene_camera_menu.tscn" id="8_v4lip"]
 [ext_resource type="PackedScene" uid="uid://dv8crbibtrpck" path="res://scene_menu.tscn" id="9_bisyb"]
 [ext_resource type="Texture2D" uid="uid://bnktl64c363mh" path="res://assets/icon/TripleBar.png" id="13_gepng"]
@@ -188,12 +188,6 @@ anti_aliasing_size = 0.5
 
 [node name="Main" type="Node"]
 script = ExtResource("1_4g2n0")
-visualizer_ca_amount = null
-visualizer_glow_amount = null
-visualizer_brightness_amount = null
-visualizer_frequency_min = null
-visualizer_frequency_max = null
-overlay_integer_zoom = null
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 unique_name_in_owner = true
@@ -230,7 +224,6 @@ grow_vertical = 2
 
 [node name="OverlayContainer" type="CenterContainer" parent="CanvasLayer/UI"]
 unique_name_in_owner = true
-z_index = 1
 layout_mode = 0
 size_flags_horizontal = 2
 size_flags_vertical = 2
@@ -302,7 +295,7 @@ position_offset = Vector2i(-30, -100)
 [node name="BackBufferCopy2" type="BackBufferCopy" parent="CanvasLayer/UI"]
 copy_mode = 2
 
-[node name="VHSFilter1" type="ColorRect" parent="CanvasLayer/UI"]
+[node name="VHSShader1" type="ColorRect" parent="CanvasLayer/UI"]
 unique_name_in_owner = true
 visible = false
 material = SubResource("ShaderMaterial_x0ssf")
@@ -313,10 +306,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BackBufferCopy2" type="BackBufferCopy" parent="CanvasLayer/UI/VHSFilter1"]
+[node name="BackBufferCopy2" type="BackBufferCopy" parent="CanvasLayer/UI/VHSShader1"]
 copy_mode = 2
 
-[node name="VHSFilter2" type="ColorRect" parent="CanvasLayer/UI"]
+[node name="VHSShader2" type="ColorRect" parent="CanvasLayer/UI"]
 unique_name_in_owner = true
 visible = false
 material = SubResource("ShaderMaterial_i0wc8")
@@ -327,10 +320,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BackBufferCopy" type="BackBufferCopy" parent="CanvasLayer/UI/VHSFilter2"]
+[node name="BackBufferCopy" type="BackBufferCopy" parent="CanvasLayer/UI/VHSShader2"]
 copy_mode = 2
 
-[node name="VHSFilter3" type="ColorRect" parent="CanvasLayer/UI"]
+[node name="CRTShader1" type="ColorRect" parent="CanvasLayer/UI"]
 unique_name_in_owner = true
 visible = false
 material = SubResource("ShaderMaterial_j82o4")
@@ -341,10 +334,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BackBufferCopy2" type="BackBufferCopy" parent="CanvasLayer/UI/VHSFilter3"]
+[node name="BackBufferCopy2" type="BackBufferCopy" parent="CanvasLayer/UI/CRTShader1"]
 copy_mode = 2
 
-[node name="Filter4" type="ColorRect" parent="CanvasLayer/UI"]
+[node name="CRTShader2" type="ColorRect" parent="CanvasLayer/UI"]
 unique_name_in_owner = true
 visible = false
 material = SubResource("ShaderMaterial_pe34f")
@@ -356,10 +349,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BackBufferCopy" type="BackBufferCopy" parent="CanvasLayer/UI/Filter4"]
+[node name="BackBufferCopy" type="BackBufferCopy" parent="CanvasLayer/UI/CRTShader2"]
 copy_mode = 2
 
-[node name="CRTShader" type="ColorRect" parent="CanvasLayer/UI"]
+[node name="CRTShader3" type="ColorRect" parent="CanvasLayer/UI"]
 unique_name_in_owner = true
 visible = false
 material = SubResource("ShaderMaterial_udd8c")
@@ -370,7 +363,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BackBufferCopy" type="BackBufferCopy" parent="CanvasLayer/UI/CRTShader"]
+[node name="BackBufferCopy" type="BackBufferCopy" parent="CanvasLayer/UI/CRTShader3"]
 copy_mode = 2
 
 [node name="NoiseShader" type="ColorRect" parent="CanvasLayer/UI"]
@@ -772,3 +765,6 @@ layout_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 text = "Dismiss"
+
+[node name="M8GD" type="M8GD" parent="."]
+unique_name_in_owner = true

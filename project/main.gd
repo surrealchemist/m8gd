@@ -1,17 +1,4 @@
-class_name M8SceneDisplay extends Node
-
-const MAIN_SCENE_PATH: String = "res://scenes/floating_scene.tscn"
-const PATH_SCENES: String = "res://scenes/"
-
-const FONT_01_SMALL: BitMap = preload("res://assets/m8_fonts/5_7.bmp")
-const FONT_01_BIG: BitMap = preload("res://assets/m8_fonts/8_9.bmp")
-const FONT_02_SMALL: BitMap = preload("res://assets/m8_fonts/9_9.bmp")
-const FONT_02_BOLD: BitMap = preload("res://assets/m8_fonts/10_10.bmp")
-const FONT_02_HUGE: BitMap = preload("res://assets/m8_fonts/12_12.bmp")
-
-const M8_ACTIONS := [
-	"key_up", "key_down", "key_left", "key_right",
-	"key_shift", "key_play", "key_option", "key_edit"]
+class_name Main extends Node
 
 signal m8_system_info_received(hardware: String, firmware: String)
 signal m8_font_changed
@@ -26,8 +13,20 @@ signal profile_loaded(profile_name: String)
 ## Loading a profile will also emit this signal if a new scene wasn't loaded.
 signal scene_loaded(scene_path: String, scene: M8Scene)
 
-@export var visualizer_ca_amount := 1.0
-@export var visualizer_glow_amount := 0.5
+const MAIN_SCENE_PATH: String = "res://scenes/floating_scene.tscn"
+const PATH_SCENES: String = "res://scenes/"
+
+const FONT_01_SMALL: BitMap = preload("res://assets/m8_fonts/5_7.bmp")
+const FONT_01_BIG: BitMap = preload("res://assets/m8_fonts/8_9.bmp")
+const FONT_02_SMALL: BitMap = preload("res://assets/m8_fonts/9_9.bmp")
+const FONT_02_BOLD: BitMap = preload("res://assets/m8_fonts/10_10.bmp")
+const FONT_02_HUGE: BitMap = preload("res://assets/m8_fonts/12_12.bmp")
+
+const M8_ACTIONS := [
+	"key_up", "key_down", "key_left", "key_right",
+	"key_shift", "key_play", "key_option", "key_edit"]
+
+@export var visualizer_aberration_amount := 1.0
 @export var visualizer_brightness_amount := 0.1
 @export var visualizer_frequency_min := 0
 @export var visualizer_frequency_max := 400
@@ -37,32 +36,6 @@ signal scene_loaded(scene_path: String, scene: M8Scene)
 		overlay_integer_zoom = value
 		if is_inside_tree():
 			_overlay_update_viewport_size()
-
-@onready var config := M8Config.load()
-
-@onready var audio_monitor: AudioStreamPlayer = %AudioStreamPlayer
-
-# @onready var scene_viewport: SubViewport = %SceneViewport
-@onready var scene_root: Node = %SceneRoot
-@onready var current_scene: M8Scene = null
-
-# overlays
-@onready var key_overlay: M8KeyOverlay = %KeyOverlay
-@onready var overlay_spectrum: Control = %OverlayAudioSpectrum
-@onready var overlay_waveform: Control = %OverlayAudioWaveform
-@onready var overlay_display: Control = %OverlayDisplayPanel
-
-@onready var menu: MainMenu = %MainMenuPanel
-@onready var menu_scene: SceneMenu = %SceneMenu
-@onready var menu_camera: PanelContainer = %SceneCameraMenu
-@onready var menu_overlay: PanelContainer = %MenuOverlay
-
-@onready var cam_status: RichTextLabel = %CameraStatus
-@onready var cam_help: RichTextLabel = %CameraControls
-@onready var cam_status_template: String = cam_status.text
-@onready var m8_client := M8GD.new()
-@onready var m8_is_connected := false
-@onready var m8_audio_connected := false
 
 var m8_virtual_keyboard_enabled := false
 var m8_virtual_keyboard_notes := []
@@ -87,47 +60,49 @@ var last_peak := 0.0
 var last_peak_max := 0.0
 var last_audio_level := 0.0
 
-func _print(text: String) -> void:
-	print_rich("[color=green]%s[/color]" % text)
+@onready var config := M8Config.load()
 
-##
-## Return a value from a .tscn file by reading and parsing the file.
-##
-func _extract_scene_property(scene_path: String, property: String) -> Variant:
-	var lines := FileAccess.get_file_as_string(scene_path).split("\n", false)
+@onready var audio_monitor: AudioStreamPlayer = %AudioStreamPlayer
 
-	for l in lines:
-		if l.contains(property):
-			var split := l.split(" = ", true, 1)
-			if split[0] == property:
-				var expr := Expression.new()
-				expr.parse(split[1])
-				return expr.execute()
+# @onready var scene_viewport: SubViewport = %SceneViewport
+@onready var scene_root: Node = %SceneRoot
+@onready var current_scene: M8Scene = null
 
-	return null
+# overlays
+@onready var overlay_keys: OverlayKeys = %KeyOverlay
+@onready var overlay_spectrum: OverlayBase = %OverlayAudioSpectrum
+@onready var overlay_waveform: OverlayBase = %OverlayAudioWaveform
+@onready var overlay_display: OverlayBase = %OverlayDisplayPanel
 
-func _notification(what: int) -> void:
-	# enable quitting by clicking the X on the window.
-	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		quit()
+@onready var menu: MainMenu = %MainMenuPanel
+@onready var menu_scene: SceneMenu = %SceneMenu
+@onready var menu_camera: PanelContainer = %SceneCameraMenu
+@onready var menu_overlay: PanelContainer = %MenuOverlay
+
+@onready var cam_status: RichTextLabel = %CameraStatus
+@onready var cam_help: RichTextLabel = %CameraControls
+@onready var cam_status_template: String = cam_status.text
+@onready var m8_client: M8GD = %M8GD
+@onready var m8_is_connected := false
+@onready var m8_audio_connected := false
 
 func _ready() -> void:
 
-	var start_time := Time.get_ticks_msec()
+	# add_child(m8_client)
 
-	# resize viewport with window
 	get_window().min_size = Vector2i(960, 640)
 
-	# initialize key overlay
-	_start_task("init key overlay", func() -> void:
-		key_overlay.init(self)
+	var start_time := Time.get_ticks_msec()
+
+	_start_task("init overlays", func() -> void:
+		overlay_spectrum.init(self)
+		overlay_waveform.init(self)
+		overlay_display.init(self)
+		overlay_keys.init(self)
 	)
 
-	_start_task("init main menu", func() -> void:
+	_start_task("init menus", func() -> void:
 		menu.init(self)
-	)
-
-	_start_task("init other menus", func() -> void:
 		menu_scene.init(self)
 		menu_camera.init(self)
 		menu_overlay.init(self)
@@ -147,24 +122,96 @@ func _ready() -> void:
 
 	%SplashContainer.visible = config.splash_show
 
-	get_tree().process_frame.connect(func() -> void:
-		# godot action to m8 controller
-		
-		var local_keybits := m8_get_local_keybits()
-		m8_client.send_input(local_keybits)
-	)
+func _process(_delta: float) -> void:
+
+	# auto connect to m8s
+	if !m8_is_connected and is_waiting_for_device:
+		m8_device_connect_auto()
+
+	# auto monitor audio if m8 is connected
+	if m8_is_connected:
+		if m8_audio_connected:
+			m8_audio_check()
+		else:
+			m8_audio_connect_auto()
+
+	%LabelFPS.text = "%d" % Engine.get_frames_per_second()
+
+	var palette := m8_get_theme_colors()
+
+	if palette.size() < 16:
+		for i in range(16):
+			get_node("%%Color_Palette%d" % (i + 1)).color = Color(0, 0, 0, 0)
+		for i in range(palette.size()):
+			get_node("%%Color_Palette%d" % (i + 1)).color = palette[i]
 
 
-func _start_task(task_name: String, fn: Callable) -> Variant:
-	var time := Time.get_ticks_msec()
-	_print("starting task \"%s\"..." % task_name)
-	var ret: Variant = fn.call()
-	_print("finished task \"%s\" in %.3f seconds" % [task_name, ((Time.get_ticks_msec() - time) / 1000.0)])
-	return ret
+func _physics_process(delta: float) -> void:
 
+	update_audio_analyzer()
+
+	var modulate_color := m8_client.get_theme_colors()[0]
+	# modulate_color.v = 1.0
+	%BGShader.material.set_shader_parameter("tint_color", modulate_color)
+
+	# do shader parameter responses to audio
+
+	%CRTShader3.material.set_shader_parameter("aberration", audio_level * visualizer_aberration_amount)
+	%CRTShader3.material.set_shader_parameter("brightness", 1.0 + (audio_level * visualizer_brightness_amount))
+	# %BGShader.material.set_shader_parameter("brightness", 1.0 + (audio_level * visualizer_brightness_amount))
+
+	# fade out status message
+
+	if %LabelStatus.modulate.a > 0:
+		%LabelStatus.modulate.a = lerp(%LabelStatus.modulate.a, %LabelStatus.modulate.a - delta * 2.0, 0.2)
+
+func _input(event: InputEvent) -> void:
+
+	if event is InputEventKey:
+		# screenshot F12
+		if event.pressed and event.keycode == KEY_F12:
+			var id := 1
+			var screenshot_name := "%d.png" % id
+
+			while FileAccess.file_exists(screenshot_name):
+				id += 1
+				screenshot_name = "%d.png" % id
+
+			get_viewport().get_texture().get_image().save_png(screenshot_name)
+
+		# fullscreen ALT+ENTER toggle
+		if event.pressed and event.keycode == KEY_ENTER and event.alt_pressed:
+			if get_window().mode == Window.MODE_WINDOWED:
+				get_window().mode = Window.MODE_EXCLUSIVE_FULLSCREEN
+			else:
+				get_window().mode = Window.MODE_WINDOWED
+
+		if event.pressed and event.keycode == KEY_ESCAPE:
+
+			if %SplashContainer.visible:
+				%SplashContainer.visible = false
+				return
+
+			# menu on/off toggle
+			if is_menu_open():
+				menu_close()
+			else:
+				menu_open()
+
+	if _handle_input_keys(event): return
+
+	if _handle_input_profile_hotkeys(event): return
+
+	if _handle_input_keyjazz(event): return
+
+func _notification(what: int) -> void:
+	# enable quitting by clicking the X on the window.
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		quit()
 
 func quit() -> void:
 	config.save()
+	m8_device_disconnect(false)
 	get_tree().quit()
 
 ## Temporarily show a message on the bottom-left of the screen.
@@ -193,32 +240,7 @@ func menu_close() -> void:
 ## The scene's formatted name is stored in the export variable [m8_scene_name].
 ##
 func get_scene_name(scene_path: String) -> String:
-	var scene_name: Variant = _extract_scene_property(scene_path, "m8_scene_name")
-	if scene_name is String:
-		return scene_name
-	else:
-		# fallback name
-		return scene_path.get_file().get_basename().capitalize()
-
-##
-## Load a M8Scene node from a filepath.
-## Returns [null] if the scene is unable to load.
-##
-func _load_scene_from_file_path(scene_path: String) -> M8Scene:
-
-	# load packed scene from file
-	print("loading new scene from %s..." % scene_path)
-	var packed_scene: PackedScene = load(scene_path.trim_suffix(".remap"))
-
-	if packed_scene == null or !packed_scene is PackedScene:
-		return null
-
-	# instantiate scene
-	print("instantiating scene...")
-	var scene: M8Scene = packed_scene.instantiate()
-	assert(scene != null and scene is M8Scene)
-
-	return scene
+	return scene_path.get_file().get_basename().capitalize().trim_suffix("Scene")
 
 ##
 ## Load an M8 scene from a filepath.
@@ -227,35 +249,39 @@ func _load_scene_from_file_path(scene_path: String) -> M8Scene:
 ## If the filepath is invalid or the scene is unable to load, returns [false].
 ##
 func load_scene(scene_path: String) -> bool:
+	return _start_task("load scene \"%s\"" % scene_path, func() -> bool:
 
-	var scene := _load_scene_from_file_path(scene_path)
+		var p_scene_path := scene_path
+		var scene := _load_scene_from_file_path(p_scene_path)
 
-	if !scene is M8Scene:
-		return false
+		if !scene is M8Scene:
+			p_scene_path = MAIN_SCENE_PATH
+			scene = _load_scene_from_file_path(MAIN_SCENE_PATH)
 
-	# remove existing scene from viewport
-	if current_scene:
-		print("freeing current scene...")
-		scene_root.remove_child(current_scene)
-		current_scene.queue_free()
-		current_scene = null
+		# remove existing scene from viewport
+		if current_scene:
+			print("freeing current scene...")
+			scene_root.remove_child(current_scene)
+			current_scene.queue_free()
+			current_scene = null
 
-	# add new scene and initialize
-	print("adding new scene...")
-	scene_root.add_child(scene)
-	scene.init(self)
-	menu.update_device_colors()
-	config.use_scene(scene)
-	current_scene = scene
+		# add new scene and initialize
+		print("adding new scene...")
+		scene_root.add_child(scene)
+		scene.init(self)
+		menu.update_device_colors()
+		config.use_scene(scene)
+		current_scene = scene
 
-	menu_scene.clear_params()
-	scene.init_menu(menu_scene)
+		menu_scene.clear_params()
+		scene.init_menu(menu_scene)
 
-	scene_loaded.emit(scene_path, scene)
+		scene_loaded.emit(p_scene_path, scene)
 
-	print("scene loaded!")
+		print("scene loaded!")
 
-	return true
+		return true
+	)
 
 ##
 ## Reset the current scene's properties to their default values.
@@ -283,7 +309,6 @@ func get_scene_paths() -> PackedStringArray:
 		path = dir_scenes.get_next()
 
 	return scene_paths
-
 
 ##
 ## Load the last saved profile.
@@ -362,7 +387,7 @@ func _get_propkey_filter_shader(filter: ColorRect, property: String) -> String:
 ##
 ## Set properties of the given overlay according to the current profile/scene.
 ##
-func _init_overlay(overlay: Control) -> void:
+func _init_overlay(overlay: OverlayBase) -> void:
 
 	# manually init the overlay properties here since we won't have a
 	# Setting node for all of them
@@ -370,38 +395,21 @@ func _init_overlay(overlay: Control) -> void:
 	for property: String in overlay.overlay_get_properties():
 		SettingBase.init_overlay_property(self, overlay, property)
 
-func _overlay_update_viewport_size() -> void:
-
-	var window_size := get_window().get_size()
-	var viewport_size := Vector2i((window_size / float(overlay_integer_zoom)).ceil())
-
-	%OverlaySubViewport.set_size(viewport_size)
-
-	%OverlaySubViewportContainer.scale = Vector2(overlay_integer_zoom, overlay_integer_zoom)
-
-	%OverlayControl.custom_minimum_size = window_size * overlay_integer_zoom
-
-	%OverlayContainer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	%OverlayContainer.set_anchors_preset(Control.PRESET_TOP_LEFT)
-
 ##
 ## Initializes or re-initializes the state of the overlays.
 ## The overlays' states will be loaded from the config.
 ##
 func init_overlays() -> void:
 
-	m8_client.set_background_alpha(0)
-	%OverlayAudioSpectrum.init(self)
-	%OverlayAudioWaveform.init(self)
-	%OverlayDisplayPanel.init(self)
+	m8_client.set_display_background_alpha(0)
 
 	_init_overlay(overlay_display)
-	_init_overlay(key_overlay)
+	_init_overlay(overlay_keys)
 	_init_overlay(overlay_spectrum)
 	_init_overlay(overlay_waveform)
 
-	get_window().size_changed.disconnect(_overlay_update_viewport_size)
-	get_window().size_changed.connect(_overlay_update_viewport_size)
+	if !get_window().size_changed.is_connected(_overlay_update_viewport_size):
+		get_window().size_changed.connect(_overlay_update_viewport_size)
 	_overlay_update_viewport_size()
 
 ##
@@ -466,6 +474,14 @@ func m8_device_connect_auto() -> void:
 		m8_device_connect(m8_ports[0])
 	else:
 		menu.set_status_serialport("Not connected: No M8 devices found")
+
+func m8_device_disconnect(wait_for_device := true) -> void:
+	if m8_client.is_connected():
+		m8_client.disconnect()
+		on_m8_device_disconnect()
+		is_waiting_for_device = wait_for_device
+		if is_waiting_for_device:
+			menu.set_status_serialport("Not connected. Waiting for device...")
 
 ##
 ## Connect to the audio input device with name `device_name`.
@@ -578,14 +594,6 @@ func on_m8_font_changed(model: String, font: int) -> void:
 
 	m8_font_changed.emit()
 
-func m8_device_disconnect(wait_for_device := true) -> void:
-	if m8_client.is_connected():
-		m8_client.disconnect()
-		on_m8_device_disconnect()
-		is_waiting_for_device = wait_for_device
-		if is_waiting_for_device:
-			menu.set_status_serialport("Not connected. Waiting for device...")
-
 ## Called when the M8 has been disconnected.
 func on_m8_device_disconnect() -> void:
 
@@ -669,65 +677,6 @@ func audio_fft(from_hz: float, to_hz: float) -> float:
 	)
 	return (magnitude.x + magnitude.y) / 2.0
 
-func _physics_process(delta: float) -> void:
-
-	update_audio_analyzer()
-
-	var modulate_color := m8_client.get_theme_colors()[0]
-	# modulate_color.v = 1.0
-	%BGShader.material.set_shader_parameter("tint_color", modulate_color)
-
-	# do shader parameter responses to audio
-
-	%CRTShader.material.set_shader_parameter("aberration", audio_level * visualizer_ca_amount)
-	%NoiseShader.material.set_shader_parameter("brightness", 1.0 + (audio_level * visualizer_brightness_amount))
-	# %BGShader.material.set_shader_parameter("brightness", 1.0 + (audio_level * visualizer_brightness_amount))
-
-	# fade out status message
-
-	if %LabelStatus.modulate.a > 0:
-		%LabelStatus.modulate.a = lerp(%LabelStatus.modulate.a, %LabelStatus.modulate.a - delta * 2.0, 0.2)
-
-func _process(_delta: float) -> void:
-
-	m8_client.update()
-
-	# auto connect to m8s
-	if !m8_is_connected and is_waiting_for_device:
-		m8_device_connect_auto()
-
-	# auto monitor audio if m8 is connected
-	if m8_is_connected:
-		if m8_audio_connected:
-			m8_audio_check()
-		else:
-			m8_audio_connect_auto()
-
-	%LabelFPS.text = "%d" % Engine.get_frames_per_second()
-
-	var palette := m8_get_theme_colors()
-
-	if palette.size() < 16:
-		for i in range(16):
-			get_node("%%Color_Palette%d" % (i + 1)).color = Color(0, 0, 0, 0)
-		for i in range(palette.size()):
-			get_node("%%Color_Palette%d" % (i + 1)).color = palette[i]
-
-##
-## Get the keybits from inputs received on this system. (Not the connected M8).
-##
-func m8_get_local_keybits() -> int:
-	var keystate := 0
-	if Input.is_action_pressed("key_up"): keystate += M8GD.M8_KEY_UP
-	if Input.is_action_pressed("key_down"): keystate += M8GD.M8_KEY_DOWN
-	if Input.is_action_pressed("key_left"): keystate += M8GD.M8_KEY_LEFT
-	if Input.is_action_pressed("key_right"): keystate += M8GD.M8_KEY_RIGHT
-	if Input.is_action_pressed("key_shift"): keystate += M8GD.M8_KEY_SHIFT
-	if Input.is_action_pressed("key_play"): keystate += M8GD.M8_KEY_PLAY
-	if Input.is_action_pressed("key_option"): keystate += M8GD.M8_KEY_OPTION
-	if Input.is_action_pressed("key_edit"): keystate += M8GD.M8_KEY_EDIT
-	return keystate
-
 func update_audio_analyzer() -> void:
 
 	if !audio_is_spectrum_analyzer_enabled():
@@ -760,7 +709,7 @@ func update_audio_analyzer() -> void:
 	# audio_level = max(audio_level_raw, lerp(audio_level_raw, last_audio_level, 0.95))
 	# last_audio_level = audio_level
 
-	var peak = db_to_linear((audio_get_peak_volume().x + audio_get_peak_volume().y) / 2.0)
+	var peak := db_to_linear((audio_get_peak_volume().x + audio_get_peak_volume().y) / 2.0)
 	audio_level = lerp(audio_level, peak, 0.2)
 	audio_level = max(audio_level, peak)
 	last_audio_level = audio_level
@@ -773,42 +722,31 @@ func update_audio_analyzer() -> void:
 	%RectAudioLevel.size.x = (audio_level_raw) * 200
 	%RectAudioLevelAvg.position.x = (audio_level) * 200.0 + 88.0
 
-func _input(event: InputEvent) -> void:
+func _print(text: String) -> void:
+	print_rich("[color=green]%s[/color]" % text)
 
-	if event is InputEventKey:
-		# screenshot F12
-		if event.pressed and event.keycode == KEY_F12:
-			var id := 1
-			var name := "%d.png" % id
+func _start_task(task_name: String, fn: Callable) -> Variant:
+	var time := Time.get_ticks_msec()
+	_print("starting task \"%s\"..." % task_name)
+	var ret: Variant = fn.call()
+	_print("finished task \"%s\" in %.3f seconds" % [task_name, ((Time.get_ticks_msec() - time) / 1000.0)])
+	return ret
 
-			while FileAccess.file_exists(name):
-				id += 1
-				name = "%d.png" % id
+func _handle_input_keys(event: InputEvent) -> bool:
+	var key := M8GD.M8_KEY_UP
+	if event.is_action("key_up"): pass
+	elif event.is_action("key_down"): key = M8GD.M8_KEY_DOWN
+	elif event.is_action("key_left"): key = M8GD.M8_KEY_LEFT
+	elif event.is_action("key_right"): key = M8GD.M8_KEY_RIGHT
+	elif event.is_action("key_shift"): key = M8GD.M8_KEY_SHIFT
+	elif event.is_action("key_play"): key = M8GD.M8_KEY_PLAY
+	elif event.is_action("key_option"): key = M8GD.M8_KEY_OPTION
+	elif event.is_action("key_edit"): key = M8GD.M8_KEY_EDIT
+	else: return false
 
-			get_viewport().get_texture().get_image().save_png(name)
+	m8_client.set_key_pressed(key, event.pressed)
 
-		# fullscreen ALT+ENTER toggle
-		if event.pressed and event.keycode == KEY_ENTER and event.alt_pressed:
-			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_WINDOWED:
-				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
-			else:
-				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-
-		if event.pressed and event.keycode == KEY_ESCAPE:
-
-			if %SplashContainer.visible:
-				%SplashContainer.visible = false
-				return
-
-			# menu on/off toggle
-			if is_menu_open():
-				menu_close()
-			else:
-				menu_open()
-
-	if _handle_input_profile_hotkeys(event): return
-
-	if _handle_input_keyjazz(event): return
+	return true
 
 func _handle_input_profile_hotkeys(event: InputEvent) -> bool:
 
@@ -920,3 +858,37 @@ func _handle_input_keyjazz(event: InputEvent) -> bool:
 			m8_send_keyjazz(m8_virtual_keyboard_notes[-1], m8_virtual_keyboard_velocity)
 
 	return true
+
+##
+## Load a M8Scene node from a filepath.
+## Returns [null] if the scene is unable to load.
+##
+func _load_scene_from_file_path(scene_path: String) -> M8Scene:
+
+	# load packed scene from file
+	print("loading new scene from %s..." % scene_path)
+	var packed_scene: PackedScene = load(scene_path.trim_suffix(".remap"))
+
+	if packed_scene == null or !packed_scene is PackedScene:
+		return null
+
+	# instantiate scene
+	print("instantiating scene...")
+	var scene: M8Scene = packed_scene.instantiate()
+	assert(scene != null and scene is M8Scene)
+
+	return scene
+
+func _overlay_update_viewport_size() -> void:
+
+	var window_size := get_window().get_size()
+	var viewport_size := Vector2i((window_size / float(overlay_integer_zoom)).ceil())
+
+	%OverlaySubViewport.set_size(viewport_size)
+
+	%OverlaySubViewportContainer.scale = Vector2(overlay_integer_zoom, overlay_integer_zoom)
+
+	%OverlayControl.custom_minimum_size = window_size * overlay_integer_zoom
+
+	%OverlayContainer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	%OverlayContainer.set_anchors_preset(Control.PRESET_TOP_LEFT)

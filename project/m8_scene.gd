@@ -1,46 +1,21 @@
 class_name M8Scene extends Node3D
 
-# const COLOR_SAMPLE_POINT_1 := Vector2i(0, 0)
-# const COLOR_SAMPLE_POINT_2 := Vector2i(19, 67)
-# const COLOR_SAMPLE_POINT_3 := Vector2i(400, 67)
+var main: Main
 
-# @export var receiver_texture: ImageTexture
-
-## 3 colors sampled from the m8's display texture
-# @export var color_fg: Color
-# @export var color_fg2: Color
-# @export var color_bg: Color
-
-@export var m8_scene_name: String
-
-var main: M8SceneDisplay
-
-func init(p_main: M8SceneDisplay) -> void:
+func init(p_main: Main) -> void:
 	main = p_main
-
-##
-## Returns this scene's property list, but only exported variables.
-##
-func get_export_vars() -> Array:
-	return get_property_list().filter(func(prop: Dictionary) -> bool:
-		return prop["usage"] == (
-			PROPERTY_USAGE_SCRIPT_VARIABLE +
-			PROPERTY_USAGE_STORAGE +
-			PROPERTY_USAGE_EDITOR
-		)
-	)
 
 ##
 ## Returns true if this scene contains a DeviceModel.
 ##
 func has_device_model() -> bool:
-	return has_node("%DeviceModel") and %DeviceModel is DeviceModel
+	return has_node("%M8Model") and %M8Model is DeviceModel
 
 ##
 ## Returns the DeviceModel in this scene is there is one. Returns null if not.
 ##
 func get_device_model() -> DeviceModel:
-	return %DeviceModel
+	return %M8Model
 
 ##
 ## Returns true if this scene contains a Camera3D.
@@ -52,7 +27,7 @@ func has_3d_camera() -> bool:
 ## Returns the Camera3D in this scene is there is one. Returns null if not.
 ##
 func get_3d_camera() -> M8SceneCamera3D:
-	return %Camera3D
+	return %Camera3D if has_node("%Camera3D") else null
 
 ##
 ## Load an image or video and apply its texture to a texture rect, if possible.
@@ -78,21 +53,13 @@ func load_media_to_texture_rect(path: String, vsp: VideoStreamPlayer = null) -> 
 
 	return null
 
+func get_auto_display_integer_scale() -> int:
+	var window_size: Vector2i = get_viewport().size
+	var texture: Texture2D = main.m8_client.get_display()
+	var intscale := 1
+	while ((intscale + 1) * texture.get_size().x <= window_size.x and (intscale + 1) * texture.get_size().y <= window_size.y):
+		intscale += 1
+	return intscale
+
 func get_setting(setting: String) -> Variant:
 	return main.config.get_property_scene(setting)
-
-# func update_m8_color_samples():
-#	 if main.m8_display_viewport != null:
-#		 var image = receiver_texture.get_image()
-#		 if image != null:
-#			 color_fg2 = image.get_pixelv(COLOR_SAMPLE_POINT_3)
-#			 color_fg = image.get_pixelv(COLOR_SAMPLE_POINT_2)
-#			 color_bg = image.get_pixelv(COLOR_SAMPLE_POINT_1)
-
-# func _physics_process(_delta):
-#	 if receiver_texture != null:
-#		 var image = receiver_texture.get_image()
-#		 if image != null:
-#			 color_fg2 = image.get_pixelv(COLOR_SAMPLE_POINT_3)
-#			 color_fg = image.get_pixelv(COLOR_SAMPLE_POINT_2)
-#			 color_bg = image.get_pixelv(COLOR_SAMPLE_POINT_1)

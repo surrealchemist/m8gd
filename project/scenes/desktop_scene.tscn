@@ -1,0 +1,206 @@
+[gd_scene load_steps=24 format=3 uid="uid://f2tvhcv8kiuu"]
+
+[ext_resource type="Script" path="res://scenes/desktop_scene.gd" id="1_0y3bn"]
+[ext_resource type="PackedScene" uid="uid://bckroenwlecqv" path="res://scene_camera_3d.tscn" id="5_d472a"]
+[ext_resource type="Material" uid="uid://dv1jtj3wvh678" path="res://assets/grid_overlay.tres" id="7_7cg8p"]
+[ext_resource type="PackedScene" uid="uid://iwhr1bmv263q" path="res://models/m8_model.tscn" id="8_a1o7u"]
+[ext_resource type="PackedScene" uid="uid://ceqlf8kgdxjeb" path="res://grass_area.tscn" id="8_ophi6"]
+[ext_resource type="PackedScene" uid="uid://nepv47umjdf0" path="res://models/plant_model.tscn" id="9_c3a4o"]
+[ext_resource type="Shader" path="res://grass_area.gdshader" id="9_wvtmw"]
+
+[sub_resource type="Environment" id="Environment_ayqpk"]
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 0.1
+tonemap_mode = 2
+tonemap_white = 10.0
+fog_light_color = Color(0, 0, 0, 1)
+fog_density = 0.001
+volumetric_fog_albedo = Color(0.114897, 0.114897, 0.114897, 1)
+volumetric_fog_ambient_inject = 0.53
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_4c1u1"]
+size = Vector2(200, 200)
+
+[sub_resource type="Gradient" id="Gradient_ful20"]
+interpolation_mode = 2
+offsets = PackedFloat32Array(0, 0.401914, 1)
+colors = PackedColorArray(0, 0.66, 0.363, 1, 0.0042, 0.21, 0.16884, 1, 0, 0.0158333, 0.05, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_o6olw"]
+resource_local_to_scene = true
+gradient = SubResource("Gradient_ful20")
+
+[sub_resource type="Gradient" id="Gradient_5offb"]
+colors = PackedColorArray(0.25, 0.25, 0.25, 1, 1, 1, 1, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_s73vr"]
+noise_type = 3
+frequency = 0.0161
+offset = Vector3(-351.18, 0, 0)
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_b4fil"]
+seamless = true
+normalize = false
+color_ramp = SubResource("Gradient_5offb")
+noise = SubResource("FastNoiseLite_s73vr")
+
+[sub_resource type="Gradient" id="Gradient_bnue4"]
+interpolation_mode = 1
+offsets = PackedFloat32Array(0, 0.464968)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_1ikkl"]
+gradient = SubResource("Gradient_bnue4")
+width = 128
+height = 128
+fill = 2
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.6, 0.5)
+metadata/_snap_enabled = true
+
+[sub_resource type="Gradient" id="Gradient_mmq47"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_3605e"]
+noise_type = 3
+frequency = 0.004
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_otixg"]
+resource_local_to_scene = true
+seamless = true
+color_ramp = SubResource("Gradient_mmq47")
+noise = SubResource("FastNoiseLite_3605e")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wnfn1"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("9_wvtmw")
+shader_parameter/uv_offset = -0.1
+shader_parameter/heightmap_offset = Vector2(40.11, 40.015)
+shader_parameter/heightmap_scale = Vector2(1.65, 1.125)
+shader_parameter/heightmap_strength = 1.7
+shader_parameter/wind_dir = Vector2(1, 1)
+shader_parameter/wind_strength = 2.0
+shader_parameter/wind_speed = 10.0
+shader_parameter/proximity_fade_distance = 0.5
+shader_parameter/distance_fade_min = 0.0
+shader_parameter/distance_fade_max = 0.0
+shader_parameter/color_ramp = SubResource("GradientTexture1D_o6olw")
+shader_parameter/wind_noise = SubResource("NoiseTexture2D_otixg")
+shader_parameter/heightmap = SubResource("NoiseTexture2D_b4fil")
+shader_parameter/heightmap_mask = SubResource("GradientTexture2D_1ikkl")
+
+[sub_resource type="Curve" id="Curve_y7obg"]
+_data = [Vector2(0, 0), 0.0, 5.75705, 0, 0, Vector2(0.485294, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), -0.0962715, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_e6yxm"]
+billboard_mode = 2
+grow_amount = -3.725
+
+[sub_resource type="RibbonTrailMesh" id="RibbonTrailMesh_xwsvd"]
+material = SubResource("StandardMaterial3D_e6yxm")
+shape = 0
+size = 0.25
+sections = 3
+section_length = 0.8
+section_segments = 1
+curve = SubResource("Curve_y7obg")
+
+[node name="M8Scene" type="Node3D"]
+script = ExtResource("1_0y3bn")
+metadata/_edit_vertical_guides_ = [640.0]
+metadata/_edit_horizontal_guides_ = [480.0]
+
+[node name="VideoStreamPlayer" type="VideoStreamPlayer" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+volume_db = -80.0
+expand = true
+loop = true
+
+[node name="Camera3D" parent="." instance=ExtResource("5_d472a")]
+unique_name_in_owner = true
+transform = Transform3D(0.906308, -0.365998, 0.211309, 0, 0.5, 0.866025, -0.422618, -0.784885, 0.453154, 4.7, 13.5, 7)
+dof_zoomout = 3.0
+dof_zoomin = 1.5
+dof_focus_distance = 14.4
+dof_focus_width = 3.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_ayqpk")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(0.477159, -0.528885, -0.701855, -6.98189e-08, -0.798635, 0.601815, -0.878817, -0.287161, -0.381076, 0.087698, 4.97022, -16.5359)
+light_color = Color(1, 0.958, 0.91, 1)
+shadow_enabled = true
+shadow_bias = 0.01
+shadow_opacity = 0.83
+shadow_blur = 3.0
+
+[node name="LightLamp" type="SpotLight3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(0.266284, 0.95967, -0.0901449, -0.46377, 0.209544, 0.860819, 0.844991, -0.187416, 0.500865, -0.919, 16.42, 9.424)
+visible = false
+light_color = Color(0.8, 0.866667, 1, 1)
+light_size = 3.0
+shadow_enabled = true
+shadow_bias = 0.06
+spot_range = 43.892
+spot_attenuation = 0.0
+spot_angle = 16.72
+spot_angle_attenuation = 0.406125
+
+[node name="LightLeft" type="SpotLight3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(0.231346, 0.952383, -0.198611, -0.918842, 0.280983, 0.27709, 0.319702, 0.118389, 0.940093, -4.77328, 6.32057, 10.2875)
+visible = false
+light_color = Color(1, 0.11, 0.11, 1)
+light_energy = 16.0
+light_size = 3.0
+shadow_enabled = true
+shadow_blur = 0.5
+spot_range = 43.892
+spot_angle = 36.8368
+
+[node name="LightRight" type="SpotLight3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(0.652098, -0.104201, 0.750939, 0, 0.990509, 0.137445, -0.758134, -0.0896274, 0.64591, 6.968, 5.274, 6.753)
+visible = false
+light_color = Color(0.614333, 0.11, 1, 1)
+light_energy = 16.0
+light_size = 3.0
+shadow_enabled = true
+shadow_blur = 0.5
+spot_range = 43.892
+spot_angle = 36.8368
+
+[node name="PlantModel" parent="." instance=ExtResource("9_c3a4o")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.50338, 0, 0.251561)
+
+[node name="SurfaceMesh" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+material_overlay = ExtResource("7_7cg8p")
+cast_shadow = 0
+mesh = SubResource("PlaneMesh_4c1u1")
+
+[node name="GrassArea" parent="." instance=ExtResource("8_ophi6")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.5, 0)
+visible = false
+material_override = SubResource("ShaderMaterial_wnfn1")
+extents = Vector3(20, 0, 20)
+grass_mesh = SubResource("RibbonTrailMesh_xwsvd")
+num_meshes = 32000
+
+[node name="M8Model" parent="." instance=ExtResource("8_a1o7u")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.416673, 0)
+
+[editable path="Camera3D"]

@@ -1,6 +1,6 @@
 extends PanelContainer
 
-var main: M8SceneDisplay
+var main: Main
 
 ## The overlay element currently being edited.
 var overlay_target: Control
@@ -14,7 +14,7 @@ func _disconnect_all(sig: Signal) -> void:
 ##
 ## Called once on initial app startup.
 ##
-func init(p_main: M8SceneDisplay) -> void:
+func init(p_main: Main) -> void:
 	main = p_main
 
 	%ButtonFinish.pressed.connect(func() -> void:
@@ -25,7 +25,7 @@ func init(p_main: M8SceneDisplay) -> void:
 ##
 ## Called when this menu is opened to edit the given overlay.
 ##
-func menu_open(overlay: Control) -> void:
+func menu_open(overlay: OverlayBase) -> void:
 
 	assert(!visible, "tried to open menu when menu is already open")
 	visible = true
@@ -36,19 +36,19 @@ func menu_open(overlay: Control) -> void:
 	init_settings(overlay_target)
 	_populate_overlay_properties()
 
-func init_settings(overlay: Control) -> void:
+func init_settings(overlay: OverlayBase) -> void:
 
 	%Setting_Position.uninit()
 	%Setting_Anchor.uninit()
 	%Setting_Size.uninit()
 
-	%Setting_Position.init_config_overlay(main, overlay, "position_offset")
-	%Setting_Anchor.init_config_overlay(main, overlay, "anchors_preset", func(_value: int) -> void:
-		%Setting_Position.value = Vector2i.ZERO
-	)
 	%Setting_Size.init_config_overlay(main, overlay, "size", func(_value: Vector2) -> void:
 		%Setting_Anchor._emit_value_changed()
 	)
+	%Setting_Anchor.init_config_overlay(main, overlay, "anchors_preset", func(_value: int) -> void:
+		%Setting_Position.value = Vector2i.ZERO
+	)
+	%Setting_Position.init_config_overlay(main, overlay, "position_offset")
 
 ##
 ## Called when this menu is closed
