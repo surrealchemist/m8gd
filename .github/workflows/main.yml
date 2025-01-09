@@ -31,9 +31,7 @@ jobs:
           packages: scons
       - name: Build Extension
         run: |
-          echo $PKG_CONFIG_PATH
-          export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:${HOME}/.local
-          scons
+          PKG_CONFIG_PATH=${HOME}/.local scons
       - name: Build
         id: build
         uses: krynv/build-godot-action@v1.0.0
