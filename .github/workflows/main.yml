@@ -32,7 +32,6 @@ jobs:
           packages: scons
       - name: Build Extension
         run: |
-          ls ${HOME}/.local/lib/pkgconfig \
           export PKG_CONFIG_LIBDIR=${HOME}/.local/lib/pkgconfig && scons
         shell: bash
       - name: Build
