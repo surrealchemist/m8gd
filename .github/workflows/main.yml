@@ -33,8 +33,7 @@ jobs:
       - name: Build Extension
         run: |
           ls ${HOME}/.local/lib/pkgconfig
-          export PKG_CONFIG_PATH=${HOME}/.local/lib/pkgconfig
-          scons
+          PKG_CONFIG_PATH=${HOME}/.local/lib/pkgconfig scons
         shell: bash
       - name: Build
         id: build
