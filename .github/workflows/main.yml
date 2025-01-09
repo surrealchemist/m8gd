@@ -20,9 +20,9 @@ jobs:
           git clone git://sigrok.org/libserialport
           cd libserialport
           ./autogen.sh
-          ./configure
+          ./configure --prefix=${HOME}/.local
           make
-          make install
+          make install 
           cd
         shell: bash
       - name: Install scons
